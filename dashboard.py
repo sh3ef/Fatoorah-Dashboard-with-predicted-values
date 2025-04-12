@@ -486,62 +486,57 @@ class DataPipeline:
         else: self.visualizations['fig5'] = go.Figure().update_layout(title=fig5_title).add_annotation(text="بيانات الكفاءة مفقودة", showarrow=False)
 
         # --- fig6 ---
-        # --- fig6 ---
-        fig6_title = "📊 تحليل باريتو (أعلى 80% من المبيعات)"
-        # --- استخدم البيانات المصفاة ---
-        pareto_data = self.analytics.get('pareto_data', pd.DataFrame()) # <-- البيانات المصفاة (حتى 80%)
+# الرسمة 6: تحليل باريتو - الكود المعدل
+        pareto_data = self.analytics['pareto_data']
+        fig6 = go.Figure()
 
-        if not pareto_data.empty and all(col in pareto_data.columns for col in ['name', 'sales_quantity', 'cumulative_percentage', 'category']):
+# 1. أعمدة المبيعات
+        fig6.add_trace(go.Bar(
+            x=pareto_data['name'],
+            y=pareto_data['sales_quantity'],
+            name="المبيعات",
+            marker_color='blue'
+        ))
 
-            fig6 = go.Figure()
+        # 2. خط النسبة التراكمية
+        colors = px.colors.qualitative.Plotly
+        valid_categories = sorted([cat for cat in pareto_data['category'].unique() 
+                                if pd.notna(cat)])
 
-            # 1. رسم الأعمدة (للمنتجات <= 80%)
-            # *** ملاحظة: الترتيب هنا قد لا يكون حسب المبيعات بالضرورة إذا لم نفرزه ***
-            # لكن لنفرزه ليكون المحور السيني أكثر منطقية
-            pareto_data_sorted_sales = pareto_data.sort_values('sales_quantity', ascending=False)
-            fig6.add_trace(go.Bar(
-                x=pareto_data_sorted_sales['name'],
-                y=pareto_data_sorted_sales['sales_quantity'],
-                name="المبيعات (أعلى 80%)",
-                marker_color='blue'
-            ))
+        for i, category in enumerate(valid_categories):
+            cat_data = pareto_data[pareto_data['category'] == category]
+            if not cat_data.empty:
+                fig6.add_trace(go.Scatter(
+                    x=cat_data['name'],
+                    y=cat_data['cumulative_percentage'],
+                    name=f"{int(category)}-{int(category + 10)}%",
+                    mode='lines+markers',
+                    line=dict(color=colors[i % len(colors)], dash='dash'),
+                    yaxis="y2"  # التأكيد على استخدام المحور الثانوي
+                ))
 
-            # 2. رسم الخط التراكمي المقسم والملون (مثل الكود الثاني)
-            colors = px.colors.qualitative.Plotly
-            # *** نستخدم pareto_data مباشرة في الحلقة، لا حاجة لفرز منفصل حسب الفئة هنا ***
-            valid_categories = sorted([cat for cat in pareto_data['category'].unique() if isinstance(cat, (int, float)) and pd.notna(cat)])
-
-            for i, category in enumerate(valid_categories):
-                # *** جلب البيانات من pareto_data مباشرة ***
-                cat_data = pareto_data[pareto_data['category'] == category]
-                # *** لا يوجد reindex ***
-                if not cat_data.empty:
-                    fig6.add_trace(go.Scatter(
-                        x=cat_data['name'],          # <-- من cat_data
-                        y=cat_data['cumulative_percentage'], # <-- من cat_data
-                        name=f"{int(category)}-{int(category + 10)}%",
-                        mode='lines+markers',
-                        yaxis="y2",
-                        line=dict(color=colors[i % len(colors)], dash='dash') # خط منقط ملون
-                    ))
-
-            # 3. تحديث تخطيط الرسمة (بدون categoryorder)
-            fig6.update_layout(
-                title=fig6_title,
-                xaxis_title="المنتج", # اسم عام للمحور السيني
-                yaxis_title="المبيعات",
-                yaxis2=dict(
-                    title="النسبة التراكمية (%)",
-                    overlaying="y",
-                    side="right",
-                    range=[0, 85] # المدى مناسب للـ 80%
-                ),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-                # *** تم حذف xaxis={'categoryorder':...} ***
+        # 3. تحديث التخطيط مع تعريف صريح للمحور الثانوي
+        fig6.update_layout(
+            title="📊 تحليل باريتو (80% من المبيعات تأتي من 20% من المنتجات)",
+            xaxis_title="المنتج",
+            yaxis_title="المبيعات",
+            yaxis2=dict(
+                title="النسبة التراكمية (%)",
+                overlaying="y",
+                side="right",
+                range=[0, 100],  # نطاق ثابت للنسب المئوية
+                showgrid=False  # إخفاء خطوط الشبكة للمحور الثانوي
+            ),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
             )
-            self.visualizations['fig6'] = fig6
-        else:
-            self.visualizations['fig6'] = go.Figure().update_layout(title=fig6_title).add_annotation(text="بيانات باريتو غير كافية", showarrow=False)         
+        )
+
+        self.visualizations['fig6'] = fig6      
         # --- fig7 ---
         fig7_title = "📈 تحليل تسعير المنتجات"
         if not product_flow.empty and 'salePrice' in product_flow.columns and 'sales_quantity' in product_flow.columns:
