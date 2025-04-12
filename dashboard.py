@@ -605,49 +605,116 @@ class DataPipeline:
 
 
         # --- fig11: الكود الجديد والمحدث ---
+        # --- fig11: الكود الجديد والمحدث ---
         fig11_title = "📈 المبيعات اليومية: الفعلية والمتوقعة"
         daily_sales_actual_df_fig11 = self.analytics.get('daily_sales_actual', pd.DataFrame())
         future_forecast_df_fig11 = self.future_forecast_data
         fig11 = go.Figure()
-        last_actual_date_fig11 = None
+        last_actual_point = None
 
         if isinstance(daily_sales_actual_df_fig11, pd.DataFrame) and not daily_sales_actual_df_fig11.empty:
              try:
                  df_actual_plot = daily_sales_actual_df_fig11.copy()
-                 df_actual_plot['date'] = pd.to_datetime(df_actual_plot['date']).dt.date
+                 df_actual_plot['date'] = pd.to_datetime(df_actual_plot['date'])
                  df_actual_plot = df_actual_plot.sort_values('date')
-                 last_actual_date_fig11 = df_actual_plot['date'].max()
-                 fig11.add_trace(go.Scatter(x=df_actual_plot['date'], y=df_actual_plot['actual'], mode='lines+markers', name='المبيعات الفعلية', marker=dict(color='rgba(0, 116, 217, 0.8)', size=5), line=dict(color='rgba(0, 116, 217, 0.8)', width=2)))
-             except Exception as e_plot_actual: st.warning(f"خطأ رسم فعلية fig11: {e_plot_actual}")
+                 if not df_actual_plot.empty:
+                      last_actual_point = df_actual_plot.iloc[-1]
 
-        if isinstance(future_forecast_df_fig11, pd.DataFrame) and not future_forecast_df_fig11.empty and last_actual_date_fig11 is not None:
+                 df_actual_plot['date_display'] = df_actual_plot['date'].dt.date
+
+                 fig11.add_trace(go.Scatter(
+                     x=df_actual_plot['date_display'],
+                     y=df_actual_plot['actual'],
+                     mode='lines+markers',
+                     name='المبيعات الفعلية',
+                     marker=dict(color='rgba(0, 116, 217, 0.8)', size=5),
+                     line=dict(color='rgba(0, 116, 217, 0.8)', width=2)))
+             except Exception as e_plot_actual:
+                 st.warning(f"خطأ رسم فعلية fig11: {e_plot_actual}")
+                 last_actual_point = None
+
+        if isinstance(future_forecast_df_fig11, pd.DataFrame) and not future_forecast_df_fig11.empty and last_actual_point is not None:
             forecast_to_plot = future_forecast_df_fig11.copy()
-            if DATE_COLUMN_OUTPUT in forecast_to_plot.columns and 'forecast' in forecast_to_plot.columns:
-                try:
-                    forecast_to_plot[DATE_COLUMN_OUTPUT] = pd.to_datetime(forecast_to_plot[DATE_COLUMN_OUTPUT]).dt.date
-                    forecast_to_plot = forecast_to_plot[forecast_to_plot[DATE_COLUMN_OUTPUT] > last_actual_date_fig11].sort_values(DATE_COLUMN_OUTPUT)
-                    if not forecast_to_plot.empty:
-                        fig11.add_trace(go.Scatter(x=forecast_to_plot[DATE_COLUMN_OUTPUT], y=forecast_to_plot['forecast'], mode='lines', name='المبيعات المتوقعة', line=dict(color='rgba(255, 65, 54, 0.9)', dash='dash', width=2)))
-                        if 'lower_ci' in forecast_to_plot.columns and 'upper_ci' in forecast_to_plot.columns:
-                            ci_valid = forecast_to_plot.dropna(subset=['lower_ci', 'upper_ci'])
-                            if not ci_valid.empty:
-                                fig11.add_trace(go.Scatter(x=ci_valid[DATE_COLUMN_OUTPUT].tolist() + ci_valid[DATE_COLUMN_OUTPUT].tolist()[::-1], y=ci_valid['upper_ci'].tolist() + ci_valid['lower_ci'].tolist()[::-1], fill='toself', fillcolor='rgba(255, 65, 54, 0.15)', line=dict(color='rgba(255,255,255,0)'), name='فترة الثقة 95%', showlegend=True, hoverinfo='skip'))
-                except Exception as e_plot_forecast: st.warning(f"خطأ رسم تنبؤ fig11: {e_plot_forecast}")
-            else: st.warning(f"DataFrame التنبؤات لـ fig11 يفتقد للأعمدة.")
+            if DATE_COLUMN_OUTPUT in forecast_to_plot.columns:
+                forecast_to_plot[DATE_COLUMN_OUTPUT] = pd.to_datetime(forecast_to_plot[DATE_COLUMN_OUTPUT])
+            else:
+                st.warning(f"عمود التاريخ '{DATE_COLUMN_OUTPUT}' مفقود في بيانات التنبؤ.")
+                forecast_to_plot = pd.DataFrame()
 
-        fig11.update_layout(title=fig11_title, xaxis_title="التاريخ", yaxis_title="إجمالي المبيعات", hovermode="x unified", legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
-        if last_actual_date_fig11:
+            if 'forecast' in forecast_to_plot.columns and not forecast_to_plot.empty:
+                try:
+                    forecast_to_plot = forecast_to_plot.sort_values(DATE_COLUMN_OUTPUT)
+
+                    last_actual_df_row = pd.DataFrame([{
+                        DATE_COLUMN_OUTPUT: last_actual_point['date'],
+                        'forecast': last_actual_point['actual'],
+                        'lower_ci': np.nan if 'lower_ci' in forecast_to_plot.columns else None,
+                        'upper_ci': np.nan if 'upper_ci' in forecast_to_plot.columns else None
+                    }])
+                    cols_to_keep = [col for col in last_actual_df_row.columns if col in forecast_to_plot.columns]
+                    last_actual_df_row = last_actual_df_row[cols_to_keep]
+
+                    forecast_to_plot_future_only = forecast_to_plot[forecast_to_plot[DATE_COLUMN_OUTPUT] > last_actual_point['date']].copy()
+                    connected_forecast_df = pd.concat([last_actual_df_row, forecast_to_plot_future_only], ignore_index=True)
+                    connected_forecast_df['date_display'] = connected_forecast_df[DATE_COLUMN_OUTPUT].dt.date
+
+                    if not connected_forecast_df.empty:
+                        fig11.add_trace(go.Scatter(
+                            x=connected_forecast_df['date_display'],
+                            y=connected_forecast_df['forecast'],
+                            mode='lines',
+                            name='المبيعات المتوقعة',
+                            line=dict(color='rgba(255, 65, 54, 0.9)', dash='dash', width=2)))
+
+                        if 'lower_ci' in connected_forecast_df.columns and 'upper_ci' in connected_forecast_df.columns:
+                            ci_valid = connected_forecast_df.iloc[1:].dropna(subset=['lower_ci', 'upper_ci'])
+                            if not ci_valid.empty:
+                                fig11.add_trace(go.Scatter(
+                                    x=ci_valid['date_display'].tolist() + ci_valid['date_display'].tolist()[::-1],
+                                    y=ci_valid['upper_ci'].tolist() + ci_valid['lower_ci'].tolist()[::-1],
+                                    fill='toself',
+                                    fillcolor='rgba(255, 65, 54, 0.15)',
+                                    line=dict(color='rgba(255,255,255,0)'),
+                                    name='فترة الثقة 95%',
+                                    showlegend=True,
+                                    hoverinfo='skip'
+                                ))
+                except Exception as e_plot_forecast:
+                    st.warning(f"خطأ رسم تنبؤ fig11: {e_plot_forecast}")
+            else:
+                st.warning(f"DataFrame التنبؤات لـ fig11 يفتقد لعمود 'forecast' أو فارغ.")
+        else:
+             if last_actual_point is None:
+                  st.warning("لم يتم العثور على آخر نقطة فعلية لرسم التنبؤات.")
+
+        fig11.update_layout(
+            title=fig11_title,
+            xaxis_title="التاريخ",
+            yaxis_title="إجمالي المبيعات",
+            hovermode="x unified",
+            legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
+        )
+
+        if last_actual_point is not None:
             try:
-                start_date_plot = last_actual_date_fig11 - timedelta(days=90)
-                end_date_plot = last_actual_date_fig11 + timedelta(days=self.forecast_horizon + 7)
+                last_actual_dt = last_actual_point['date']
+                start_date_plot_dt = last_actual_dt - timedelta(days=90)
+                end_date_plot_dt = last_actual_dt + timedelta(days=self.forecast_horizon + 7)
+
                 if isinstance(daily_sales_actual_df_fig11, pd.DataFrame) and not daily_sales_actual_df_fig11.empty:
-                     first_actual_date = daily_sales_actual_df_fig11['date'].min()
-                     if start_date_plot < first_actual_date: start_date_plot = first_actual_date
+                     first_actual_dt = pd.to_datetime(daily_sales_actual_df_fig11['date']).min()
+                     if pd.notna(first_actual_dt) and start_date_plot_dt < first_actual_dt:
+                          start_date_plot_dt = first_actual_dt
+
                 if isinstance(future_forecast_df_fig11, pd.DataFrame) and not future_forecast_df_fig11.empty and DATE_COLUMN_OUTPUT in future_forecast_df_fig11.columns:
-                     max_forecast_date = pd.to_datetime(future_forecast_df_fig11[DATE_COLUMN_OUTPUT]).dt.date.max()
-                     if pd.notna(max_forecast_date) and max_forecast_date < end_date_plot: end_date_plot = max_forecast_date + timedelta(days=1)
-                fig11.update_xaxes(range=[start_date_plot, end_date_plot])
-            except Exception as e_xaxis: st.warning(f"خطأ تحديد نطاق X لـ fig11: {e_xaxis}")
+                     max_forecast_dt = pd.to_datetime(future_forecast_df_fig11[DATE_COLUMN_OUTPUT]).max()
+                     if pd.notna(max_forecast_dt) and max_forecast_dt < end_date_plot_dt:
+                          end_date_plot_dt = max_forecast_dt + timedelta(days=1)
+
+                fig11.update_xaxes(range=[start_date_plot_dt, end_date_plot_dt])
+            except Exception as e_xaxis:
+                st.warning(f"خطأ تحديد نطاق X لـ fig11: {e_xaxis}")
+
         self.visualizations['fig11'] = fig11
         # --- نهاية fig11 ---
 
