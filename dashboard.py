@@ -664,7 +664,7 @@ class DataPipeline:
                             y=connected_forecast_df['forecast'],
                             mode='lines',
                             name='المبيعات المتوقعة',
-                            line=dict(color='rgba(255, 65, 54, 0.9)', dash='dash', width=2)))
+                            line=dict(color='rgba(255, 65, 54, 0.9)', dash='solid', width=2)))
 
                         if 'lower_ci' in connected_forecast_df.columns and 'upper_ci' in connected_forecast_df.columns:
                             ci_valid = connected_forecast_df.iloc[1:].dropna(subset=['lower_ci', 'upper_ci'])
