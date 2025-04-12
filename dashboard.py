@@ -491,77 +491,62 @@ class DataPipeline:
         else: self.visualizations['fig5'] = go.Figure().update_layout(title=fig5_title).add_annotation(text="بيانات الكفاءة مفقودة", showarrow=False)
 
         # --- fig6 ---
-                # --- fig6 ---
         # --- fig6 ---
-        fig6_title = "📊 تحليل باريتو (أعلى 80% من المبيعات)" # العنوان يعكس المحتوى
-        # --- استخدم البيانات المصفاة كما هي ---
+        fig6_title = "📊 تحليل باريتو (أعلى 80% من المبيعات)"
+        # --- استخدم البيانات المصفاة ---
         pareto_data = self.analytics.get('pareto_data', pd.DataFrame()) # <-- البيانات المصفاة (حتى 80%)
 
-        # تأكد من أن الأعمدة المطلوبة موجودة في البيانات المصفاة
         if not pareto_data.empty and all(col in pareto_data.columns for col in ['name', 'sales_quantity', 'cumulative_percentage', 'category']):
-
-            # تأكد من أن البيانات مرتبة حسب المبيعات (الأعلى أولاً) لعرض الأعمدة والمحور السيني بشكل صحيح
-            pareto_data_sorted_sales = pareto_data.sort_values('sales_quantity', ascending=False)
 
             fig6 = go.Figure()
 
-            # 1. رسم الأعمدة (للمنتجات <= 80%, مرتبة)
+            # 1. رسم الأعمدة (للمنتجات <= 80%)
+            # *** ملاحظة: الترتيب هنا قد لا يكون حسب المبيعات بالضرورة إذا لم نفرزه ***
+            # لكن لنفرزه ليكون المحور السيني أكثر منطقية
+            pareto_data_sorted_sales = pareto_data.sort_values('sales_quantity', ascending=False)
             fig6.add_trace(go.Bar(
                 x=pareto_data_sorted_sales['name'],
                 y=pareto_data_sorted_sales['sales_quantity'],
-                name="المبيعات (أعلى 80%)", # تعديل الاسم ليعكس المحتوى
+                name="المبيعات (أعلى 80%)",
                 marker_color='blue'
             ))
 
-            # 2. رسم الخط التراكمي المقسم والملون (كما في الكود الأصلي/الثاني)
-            colors = px.colors.qualitative.Plotly # لوحة الألوان
+            # 2. رسم الخط التراكمي المقسم والملون (مثل الكود الثاني)
+            colors = px.colors.qualitative.Plotly
+            # *** نستخدم pareto_data مباشرة في الحلقة، لا حاجة لفرز منفصل حسب الفئة هنا ***
+            valid_categories = sorted([cat for cat in pareto_data['category'].unique() if isinstance(cat, (int, float)) and pd.notna(cat)])
 
-            # فرز حسب الفئة فقط لعمل الحلقة (الترتيب النهائي للمحور السيني يعتمد على pareto_data_sorted_sales)
-            pareto_data_sorted_cat = pareto_data.sort_values('category')
-            # التأكد من أن الفئات صالحة (رقمية)
-            valid_categories = sorted([cat for cat in pareto_data_sorted_cat['category'].unique() if isinstance(cat, (int, float)) and pd.notna(cat)])
-
-            # --- الحلقة لرسم كل جزء بلون مختلف ---
-            for i, category in enumerate(valid_categories): # استخدام enumerate للحصول على المؤشر i للون
-                # جلب البيانات الخاصة بهذه الفئة فقط
-                cat_data = pareto_data_sorted_cat[pareto_data_sorted_cat['category'] == category]
+            for i, category in enumerate(valid_categories):
+                # *** جلب البيانات من pareto_data مباشرة ***
+                cat_data = pareto_data[pareto_data['category'] == category]
+                # *** لا يوجد reindex ***
                 if not cat_data.empty:
-                    # --- الأهم: فرز بيانات الفئة الحالية بنفس ترتيب الأعمدة قبل الرسم ---
-                    # نستخدم index اسم المنتج لمحاذاة البيانات مع الترتيب العام للمبيعات
-                    cat_data_ordered = cat_data.set_index('name').reindex(pareto_data_sorted_sales['name']).reset_index()
-                    # التأكد من أن النسبة التراكمية ليست NaN بعد إعادة الترتيب
-                    cat_data_ordered = cat_data_ordered.dropna(subset=['cumulative_percentage'])
+                    fig6.add_trace(go.Scatter(
+                        x=cat_data['name'],          # <-- من cat_data
+                        y=cat_data['cumulative_percentage'], # <-- من cat_data
+                        name=f"{int(category)}-{int(category + 10)}%",
+                        mode='lines+markers',
+                        yaxis="y2",
+                        line=dict(color=colors[i % len(colors)], dash='dash') # خط منقط ملون
+                    ))
 
-                    # --- التحقق من وجود بيانات لرسم هذا الجزء ---
-                    if not cat_data_ordered.empty:
-                         fig6.add_trace(go.Scatter(
-                             x=cat_data_ordered['name'], # المحور السيني لبيانات هذه الفئة (مرتبة)
-                             y=cat_data_ordered['cumulative_percentage'], # المحور الصادي لبيانات هذه الفئة
-                             name=f"{int(category)}-{int(category + 10)}%", # اسم الجزء في الـ legend
-                             mode='lines+markers', # خطوط ونقاط (يمكن تغييرها إلى 'lines' فقط)
-                             yaxis="y2", # استخدام المحور الصادي الثاني
-                             line=dict(color=colors[i % len(colors)], dash='dash') # تعيين لون مختلف وخط منقط
-                         ))
-
-            # تحديث المحاور والتخطيط
+            # 3. تحديث تخطيط الرسمة (بدون categoryorder)
             fig6.update_layout(
                 title=fig6_title,
-                xaxis_title="المنتج (مرتبة حسب المبيعات - أعلى 80%)",
+                xaxis_title="المنتج", # اسم عام للمحور السيني
                 yaxis_title="المبيعات",
                 yaxis2=dict(
                     title="النسبة التراكمية (%)",
                     overlaying="y",
                     side="right",
-                    range=[0, 85] # المدى مناسب للـ 80% (يمكن زيادته قليلاً إلى 90 أو 100)
+                    range=[0, 85] # المدى مناسب للـ 80%
                 ),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                # ضمان تطابق ترتيب المحور السيني مع الأعمدة
-                xaxis={'categoryorder':'array', 'categoryarray': pareto_data_sorted_sales['name'].tolist()}
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                # *** تم حذف xaxis={'categoryorder':...} ***
             )
             self.visualizations['fig6'] = fig6
         else:
-            # حالة عدم وجود بيانات باريتو كافية
-            self.visualizations['fig6'] = go.Figure().update_layout(title=fig6_title).add_annotation(text="بيانات باريتو غير كافية", showarrow=False)
+            self.visualizations['fig6'] = go.Figure().update_layout(title=fig6_title).add_annotation(text="بيانات باريتو غير كافية", showarrow=False)         
         # --- fig7 ---
         fig7_title = "📈 تحليل تسعير المنتجات"
         if not product_flow.empty and 'salePrice' in product_flow.columns and 'sales_quantity' in product_flow.columns:
