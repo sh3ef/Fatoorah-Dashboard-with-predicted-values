@@ -492,6 +492,7 @@ class DataPipeline:
 
         # --- fig6 ---
                 # --- fig6 ---
+        # --- fig6 ---
         fig6_title = "📊 تحليل باريتو (أعلى 80% من المبيعات)" # العنوان يعكس المحتوى
         # --- استخدم البيانات المصفاة كما هي ---
         pareto_data = self.analytics.get('pareto_data', pd.DataFrame()) # <-- البيانات المصفاة (حتى 80%)
@@ -526,15 +527,18 @@ class DataPipeline:
                 cat_data = pareto_data_sorted_cat[pareto_data_sorted_cat['category'] == category]
                 if not cat_data.empty:
                     # --- الأهم: فرز بيانات الفئة الحالية بنفس ترتيب الأعمدة قبل الرسم ---
+                    # نستخدم index اسم المنتج لمحاذاة البيانات مع الترتيب العام للمبيعات
                     cat_data_ordered = cat_data.set_index('name').reindex(pareto_data_sorted_sales['name']).reset_index()
-                    cat_data_ordered = cat_data_ordered.dropna(subset=['cumulative_percentage']) # إزالة المنتجات التي قد لا تكون في هذه الفئة بعد إعادة الترتيب
+                    # التأكد من أن النسبة التراكمية ليست NaN بعد إعادة الترتيب
+                    cat_data_ordered = cat_data_ordered.dropna(subset=['cumulative_percentage'])
 
+                    # --- التحقق من وجود بيانات لرسم هذا الجزء ---
                     if not cat_data_ordered.empty:
                          fig6.add_trace(go.Scatter(
                              x=cat_data_ordered['name'], # المحور السيني لبيانات هذه الفئة (مرتبة)
                              y=cat_data_ordered['cumulative_percentage'], # المحور الصادي لبيانات هذه الفئة
                              name=f"{int(category)}-{int(category + 10)}%", # اسم الجزء في الـ legend
-                             mode='lines+markers', # خطوط ونقاط
+                             mode='lines+markers', # خطوط ونقاط (يمكن تغييرها إلى 'lines' فقط)
                              yaxis="y2", # استخدام المحور الصادي الثاني
                              line=dict(color=colors[i % len(colors)], dash='dash') # تعيين لون مختلف وخط منقط
                          ))
@@ -548,7 +552,7 @@ class DataPipeline:
                     title="النسبة التراكمية (%)",
                     overlaying="y",
                     side="right",
-                    range=[0, 85] # المدى مناسب للـ 80%
+                    range=[0, 85] # المدى مناسب للـ 80% (يمكن زيادته قليلاً إلى 90 أو 100)
                 ),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                 # ضمان تطابق ترتيب المحور السيني مع الأعمدة
@@ -556,8 +560,8 @@ class DataPipeline:
             )
             self.visualizations['fig6'] = fig6
         else:
+            # حالة عدم وجود بيانات باريتو كافية
             self.visualizations['fig6'] = go.Figure().update_layout(title=fig6_title).add_annotation(text="بيانات باريتو غير كافية", showarrow=False)
-
         # --- fig7 ---
         fig7_title = "📈 تحليل تسعير المنتجات"
         if not product_flow.empty and 'salePrice' in product_flow.columns and 'sales_quantity' in product_flow.columns:
