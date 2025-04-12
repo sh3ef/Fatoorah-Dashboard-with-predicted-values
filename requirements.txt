@@ -1,6 +1,6 @@
 streamlit
 numpy
-pmdarima==1.8.5
+pmdarima
 statsmodels
 pandas
 scikit-learn
