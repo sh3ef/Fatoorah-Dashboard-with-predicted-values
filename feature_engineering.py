@@ -544,18 +544,7 @@ class _SalesFeatureEngineerInternal:
 
 # --- **** الدالة العامة القابلة للاستدعاء **** ---
 def generate_features_df(data_paths):
-    """
-    تقوم بتحميل بيانات المبيعات، إجراء هندسة الميزات، وإرجاع DataFrame جاهز للتنبؤ.
-
-    Args:
-        data_paths (dict): قاموس يحتوي على مسارات ملفات البيانات المطلوبة.
-                           مثال: {'sale_invoices': 'path/invoices.xlsx',
-                                  'sale_invoices_details': 'path/details.xlsx'}
-
-    Returns:
-        pandas.DataFrame: DataFrame يحتوي على المبيعات اليومية والميزات المشتقة،
-                          أو يثير استثناء (Exception) في حالة الفشل.
-    """
+  
     logger.info("--- بدء دالة generate_features_df ---")
     try:
         engineer = _SalesFeatureEngineerInternal(data_paths)
@@ -589,10 +578,9 @@ def generate_features_df(data_paths):
 # --- مثال للاختبار المستقل (اختياري) ---
 if __name__ == "__main__":
     print("--- اختبار مستقل لـ feature_engineering.py ---")
-    # !!! قم بتحديث هذه المسارات لتناسب بيئتك !!!
     test_data_paths = {
-        'sale_invoices': r'C:\Users\sheee\Downloads\ZodData\sale_invoices.xlsx',
-        'sale_invoices_details': r'C:\Users\sheee\Downloads\ZodData\sale_invoices_details.xlsx'
+        'sale_invoices': 'data/sale_invoices.xlsx',
+        'sale_invoices_details': 'data/sale_invoices_details.xlsx'
     }
     try:
         print(f"استدعاء generate_features_df بالمسارات: {test_data_paths}")
