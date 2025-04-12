@@ -469,8 +469,8 @@ def train_and_forecast(features_df, forecast_horizon=14, seasonal_period=DEFAULT
 if __name__ == "__main__":
     print("--- اختبار مستقل لـ forecasting.py ---")
     test_data_paths_fc = {
-        'sale_invoices': r'C:\Users\sheee\Downloads\ZodData\sale_invoices.xlsx',
-        'sale_invoices_details': r'C:\Users\sheee\Downloads\ZodData\sale_invoices_details.xlsx'
+        'sale_invoices': 'data/sale_invoices.xlsx',
+        'sale_invoices_details': 'data/sale_invoices_details.xlsx'
     }
     test_forecast_horizon = 14
 
