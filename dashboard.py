@@ -25,10 +25,10 @@ except ImportError as import_err:
     st.stop()
 
 # --- إعدادات مسارات البيانات الأصلية ---
-SALE_INVOICES_PATH = r"C:\Users\sheee\Downloads\ZodData\sale_invoices.xlsx"
-SALE_INVOICES_DETAILS_PATH = r"C:\Users\sheee\Downloads\ZodData\sale_invoices_details.xlsx"
-PRODUCTS_PATH = r"C:\Users\sheee\Downloads\ZodData\products.xlsx"
-INVOICE_DEFERRED_PATH = r"C:\Users\sheee\Downloads\ZodData\invoice_deferreds.xlsx"
+SALE_INVOICES_PATH = "data/sale_invoices.xlsx"
+SALE_INVOICES_DETAILS_PATH = "data/sale_invoices_details.xlsx"
+PRODUCTS_PATH = "data/products.xlsx"
+INVOICE_DEFERRED_PATH = "data/invoice_deferreds.xlsx"
 
 # --- دالة مساعدة لتحليل التواريخ ---
 def parse_excel_date(date_val):
