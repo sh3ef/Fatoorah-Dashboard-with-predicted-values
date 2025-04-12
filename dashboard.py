@@ -97,7 +97,6 @@ class DataPipeline:
                      elif name == 'sale_invoices': dtype_map = {'id':'Int64', 'totalPrice':'float32', 'paidAmount':'float32', 'remainingAmount':'float32', 'user_id':'Int64'}
                      elif name == 'products': dtype_map = {'id':'Int64', 'quantity':'float32', 'buyPrice':'float32', 'salePrice':'float32'}
                      raw_data_loaded[name] = pd.read_excel(path, dtype=dtype_map)
-                     st.info(f"تم تحميل {name} ({len(raw_data_loaded[name])} صف).")
                  except Exception as e:
                      st.error(f"خطأ تحميل {name}: {e}")
                      raw_data_loaded[name] = pd.DataFrame()
@@ -242,7 +241,6 @@ class DataPipeline:
              return processed_data, analytics
 
         # --- حساب التحليلات ---
-        st.info("حساب التحليلات المختلفة...")
         try:
             # 1. المبيعات اليومية الفعلية (لـ fig11)
             merged_sales_fig11 = pd.merge(
@@ -256,7 +254,6 @@ class DataPipeline:
                 daily_sales_actual_df.rename(columns={'created_at_per_day': 'date', sid_amount_col_original: 'actual'}, inplace=True)
                 daily_sales_actual_df['date'] = pd.to_datetime(daily_sales_actual_df['date']).dt.date
                 analytics['daily_sales_actual'] = daily_sales_actual_df.sort_values('date')
-                st.success(f"تم حساب المبيعات الفعلية لـ {len(analytics['daily_sales_actual'])} يوم.")
             else:
                 st.warning("لا توجد بيانات لحساب المبيعات اليومية الفعلية.")
                 analytics['daily_sales_actual'] = pd.DataFrame(columns=['date', 'actual'])
@@ -401,7 +398,6 @@ class DataPipeline:
         processed_data['products'] = products
         processed_data['invoice_deferred'] = deferred
 
-        st.success("تم الانتهاء من معالجة البيانات وحساب التحليلات.")
         return processed_data, analytics
 
 # --- End of Part 1 ---
@@ -410,7 +406,6 @@ class DataPipeline:
     # --- مرحلة 3: إنشاء الرسوم البيانية ---
     def generate_visualizations(self):
         """إنشاء جميع الرسوم البيانية المطلوبة."""
-        st.info("بدء إنشاء الرسوم البيانية...")
         self.visualizations = {} # إعادة تهيئة
 
         # --- استعادة كود إنشاء الرسوم من 1 إلى 10 و 12 إلى 17 ---
@@ -770,7 +765,6 @@ class DataPipeline:
              self.visualizations['fig17'] = fig17
         else: self.visualizations['fig17'] = go.Figure().update_layout(title=fig17_title).add_annotation(text="لا توجد بيانات مبالغ آجلة", showarrow=False)
 
-        st.success("تم الانتهاء من إنشاء جميع الرسوم البيانية.") # نقل رسالة النجاح إلى النهاية
 
 # --- End of Part 2 ---
 # dashboard.py - الجزء الثالث (استكمال الجزء الثاني)
@@ -778,36 +772,30 @@ class DataPipeline:
     # --- مرحلة 4: تشغيل خط الأنابيب ---
     def run_pipeline(self):
         """تشغيل خطوات تحميل البيانات، هندسة الميزات، التنبؤ، التحليل، وإنشاء الرسوم."""
-        st.info("--- بدء تشغيل خط أنابيب البيانات الكامل ---")
         pipeline_success = True
         features_df = None
 
         # 1. تحميل البيانات الأصلية
-        st.markdown("### 1. تحميل البيانات الأصلية (Excel)")
         try:
             self.raw_data = self.load_original_data()
-            st.success("تم تحميل البيانات الأصلية بنجاح.")
         except Exception as e_load:
             st.error(f"فشل تحميل البيانات الأصلية: {e_load}")
             st.exception(e_load); pipeline_success = False; st.stop()
 
         # 2. هندسة الميزات
         if pipeline_success:
-             st.markdown("### 2. هندسة الميزات")
              with st.spinner("جاري إنشاء الميزات..."):
                  try:
                      features_df = generate_features_df(self.feature_data_paths)
                      if features_df is None or features_df.empty:
                          st.error("فشلت هندسة الميزات (الناتج فارغ).")
                          pipeline_success = False
-                     else: st.success(f"تم إنشاء الميزات. الشكل: {features_df.shape}")
                  except Exception as e_feat:
                      st.error(f"فشل في هندسة الميزات: {e_feat}")
                      st.exception(e_feat); pipeline_success = False
 
         # 3. التدريب والتنبؤ
         if pipeline_success and features_df is not None:
-             st.markdown("### 3. تدريب النموذج والتنبؤ المستقبلي")
              with st.spinner(f"جاري التدريب والتنبؤ لـ {self.forecast_horizon} يومًا..."):
                  try:
                      self.future_forecast_data = train_and_forecast(features_df=features_df, forecast_horizon=self.forecast_horizon)
@@ -816,14 +804,12 @@ class DataPipeline:
                          pipeline_success = False
                      elif self.future_forecast_data.empty:
                          st.warning("اكتمل التدريب، لكن لم يتم إنشاء تنبؤات (DataFrame فارغ).")
-                     else: st.success(f"تم التدريب والتنبؤ بنجاح ({len(self.future_forecast_data)} يوم).")
                  except Exception as e_forecast:
                       st.error(f"فشل غير متوقع في التدريب/التنبؤ: {e_forecast}")
                       st.exception(e_forecast); self.future_forecast_data = None; pipeline_success = False
 
         # 4. معالجة البيانات الأصلية وحساب التحليلات
         if pipeline_success:
-             st.markdown("### 4. معالجة البيانات الأصلية وحساب التحليلات")
              try:
                  processed_data_result, analytics_result = self.preprocess_and_analyze(self.raw_data)
                  self.processed_data = processed_data_result
@@ -831,21 +817,18 @@ class DataPipeline:
                  is_analytics_valid = isinstance(self.analytics, dict) and self.analytics.get('daily_sales_actual') is not None and not self.analytics['daily_sales_actual'].empty
                  if not is_analytics_valid:
                       st.warning("لم يتم حساب بيانات التحليل الأساسية (مثل المبيعات الفعلية). قد تكون بعض الرسوم فارغة.")
-                 else: st.success("تمت معالجة البيانات وحساب التحليلات.")
              except Exception as e_analyze:
                  st.error(f"فشل في معالجة/تحليل البيانات الأصلية: {e_analyze}")
                  st.exception(e_analyze); pipeline_success = False
 
         # 5. إنشاء الرسوم البيانية (الآن لجميع الرسوم)
         if pipeline_success:
-             st.markdown("### 5. إنشاء الرسوم البيانية")
              try:
                  # تأكد من أن analytics يحتوي على البيانات اللازمة قبل استدعاء generate_visualizations
                  if isinstance(self.analytics, dict) and self.analytics:
                      self.generate_visualizations() # يجب أن تنشئ الآن جميع الرسوم
                      if not self.visualizations:
                           st.warning("لم يتم إنشاء أي رسوم بيانية لسبب ما.")
-                     else: st.success("تم إنشاء الرسوم البيانية.")
                  else:
                       st.warning("لا يمكن إنشاء الرسوم البيانية بسبب عدم توفر بيانات التحليل.")
 
@@ -853,7 +836,6 @@ class DataPipeline:
                  st.error(f"فشل في إنشاء الرسوم البيانية: {e_viz}")
                  st.exception(e_viz)
 
-        if pipeline_success: st.info("--- اكتمل خط أنابيب البيانات بنجاح ---")
         else: st.error("--- فشل خط أنابيب البيانات في إحدى الخطوات ---")
 
     # --- مرحلة 5: عرض لوحة التحكم (عرض جميع الرسوم) ---
@@ -950,12 +932,10 @@ class DataPipeline:
 
 # --- التشغيل الرئيسي للداشبورد ---
 if __name__ == "__main__":
-    st.info("بدء تشغيل تطبيق الداشبورد...")
     try:
         pipeline = DataPipeline()
         pipeline.run_pipeline()
         pipeline.display_dashboard()
-        st.info("تم عرض الداشبورد.")
     except FileNotFoundError as fnf_error:
         st.error(f"خطأ فادح: ملف أساسي مفقود: {fnf_error}")
         st.info("تأكد من مسارات ملفات Excel في بداية الكود.")
