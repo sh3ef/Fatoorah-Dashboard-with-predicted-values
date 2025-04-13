@@ -841,13 +841,6 @@ class DataPipeline:
             st.warning("لا توجد بيانات منتجات لعرض جدول المخزون.")
 
 if __name__ == "__main__":
-    st.sidebar.subheader("ملفات البيانات المستخدمة:")
-    st.sidebar.caption(f"الفواتير Excel: `{SALE_INVOICES_PATH}`")
-    st.sidebar.caption(f"التفاصيل Excel: `{SALE_INVOICES_DETAILS_PATH}`")
-    st.sidebar.caption(f"المنتجات Excel: `{PRODUCTS_PATH}`")
-    st.sidebar.caption(f"الآجل Excel: `{INVOICE_DEFERRED_PATH}`")
-    st.sidebar.caption(f"التنبؤات CSV: `{FORECAST_CSV_PATH}`")
-    st.sidebar.markdown("_تأكد من وجود الملفات وتعديل `FORECAST_CSV_PATH` في الكود._")
     pipeline = DataPipeline()
     try:
         pipeline.run_pipeline(forecast_csv_path=FORECAST_CSV_PATH)
