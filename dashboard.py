@@ -347,7 +347,6 @@ class DataPipeline:
             return False
         try:
             df = pd.read_csv(file_path)
-            st.success(f"تم تحميل ملف التنبؤات من المسار: {file_path}")
             required_csv_cols = [DATE_COLUMN_CSV, FORECAST_COLUMN_CSV]
             missing_required_cols = [col for col in required_csv_cols if col not in df.columns]
             if missing_required_cols:
